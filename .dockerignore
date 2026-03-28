@@ -54,4 +54,27 @@ dkms.conf
 build
 vcpkg_installed
 .devcontainer/
+
+# Dependency Managers
+vcpkg/
+vcpkg_installed/
+
+# Build Artifacts
 build/
+bin/
+obj/
+out/
+
+# IDE & Editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Version Control
+.git
+.gitignore
+
+# Docker files (Optional, keeps the image clean)
+Dockerfile
+.devcontainer/
