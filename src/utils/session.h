@@ -15,6 +15,7 @@ typedef struct {
     char* version;
 } http_request_line;
 
+
 int init_server(int port, int* server_fd);
 int connect_client(int server_fd, int* client_socket);
 char* handle_request(int client_socket);
@@ -23,5 +24,6 @@ int send_response(int client_socket, char* response, int size);
 http_request_line* init_request_line();
 void free_request_line(http_request_line* req_line);
 http_request_line* parse_request_line(int client_socket);
+
 
 #endif
