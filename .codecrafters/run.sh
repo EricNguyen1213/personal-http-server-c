@@ -6,6 +6,6 @@
 #
 # Learn more: https://codecrafters.io/program-interface
 
-set -e # Exit on failure
+# set -e # Exit on failure
 
-exec $(dirname "$0")/build/http-server "$@"
+# exec $(dirname "$0")/build/http-server "$@"
