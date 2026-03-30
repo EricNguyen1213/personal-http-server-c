@@ -1,4 +1,4 @@
-#include "utils/utils.h"
+#include "utils/session.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/socket.h>
@@ -7,10 +7,6 @@
 #include <string.h>
 #include <errno.h>
 #include <unistd.h>
-
-
-#define PORT 4221
-#define MAX_PENDING_CONNECTIONS 5
 
 int main() {
 	// Disable output buffering
