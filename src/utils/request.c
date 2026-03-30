@@ -120,7 +120,7 @@ Http_Request* parse_request(int client_socket) {
     int bytes_read, method_len, target_len, version_len, headerkey_len, headerval_len;
     bool found_method, found_target, found_version, found_crlf_split, found_headerkey, found_headerval, found_ending;
     
-    method_len = target_len = version_len = headerkey_len = headerval_len = 0;
+    method_len = target_len = version_len = 0;
     found_method = found_target = found_version = found_crlf_split = found_headerkey = found_headerval = found_ending = false;
     Http_Request* req_line = init_request();
 
@@ -139,6 +139,7 @@ Http_Request* parse_request(int client_socket) {
     while (!found_crlf(client_socket, &start, buffer, &bytes_read)) {
         headerkey = safe_malloc(sizeof(char) * INIT_LINE_SIZE);
         headerval = safe_malloc(sizeof(char) * INIT_LINE_SIZE);
+        headerkey_len = headerval_len = 0;
 
         do {
             read_chunk(&headerkey, &headerkey_len, ": ", &bytes_read, &start, buffer, &found_headerkey);
@@ -158,31 +159,9 @@ Http_Request* parse_request(int client_socket) {
             break;
         }
 
-        for (int i = 0; headerkey[i] != '\0'; i++) {
-            headerkey[i] = tolower((unsigned char) headerkey[i]);
-        }
         shput(req_line->headers_map, headerkey, headerval);
     }
 
     return req_line;
 }
 
-
-char* create_status_line(int code) {
-    char *status, *status_line;
-    switch (code) {
-        case 200:
-            status = "OK";
-            break;
-        case 404:
-            status = "Not Found";
-            break;
-        default:
-            printf("Unknown Status Code");
-            return NULL;
-    }
-    int len = snprintf(NULL, 0, "HTTP/1.1 %d %s", code, status);
-    status_line = safe_malloc(len + 1);
-    snprintf(status_line, len + 1, "HTTP/1.1 %d %s", code, status);
-    return status_line;
-}

@@ -1,5 +1,6 @@
 #include "session.h"
 #include "tools/alloc.h"
+#include "tools/stb_ds.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -62,9 +63,9 @@ int connect_client(int server_fd, int* client_socket) {
 
 
 char* handle_request(int client_socket) {
-    char *response, *status_line, *resp_header, *body;
-    resp_header = strdup("");
-    body = strdup("");
+    char *response, *status_line;
+    char* headers = strdup("");
+    char* body = strdup("");
     Http_Request* request = parse_request(client_socket);
 
     if (strcmp("/", request->target) == 0) {
@@ -72,29 +73,26 @@ char* handle_request(int client_socket) {
 
     } else if (strncmp("/echo/", request->target, 6) == 0) {
         status_line = create_status_line(200);
+        body = create_text_body(body, request->target + 6);
+        headers = create_text_header(headers, strlen(body));
 
-        int body_len = strlen(request->target + 6);
-        body = safe_realloc(body, body_len + 1);
-        snprintf(body, body_len + 1, "%s", request->target + 6);
-
-        int header_len = snprintf(NULL, 0, "Content-Type: text/plain\r\nContent-Length: %d\r\n", strlen(body));
-        resp_header = safe_realloc(resp_header, header_len + 1);
-        snprintf(resp_header, header_len + 1, "Content-Type: text/plain\r\nContent-Length: %d\r\n", strlen(body));
+    } else if (strcmp("/user-agent", request->target) == 0) {
+        status_line = create_status_line(200);
+        body = create_text_body(body, shget(request->headers_map, "User-Agent"));
+        headers = create_text_header(headers, strlen(body));
 
     } else {
         status_line = create_status_line(404);
     }
 
-    int resp_len = strlen(status_line) + strlen(resp_header) + strlen(body) + 4;
-    response = safe_malloc(resp_len + 1);
-    snprintf(response, resp_len + 1, "%s\r\n%s\r\n%s", status_line, resp_header, body);
+    response = create_response(status_line, headers, body);
 
     // printf("%s\n", request->method);
     // printf("%s\n", request->target);
     // printf("%s\n", request->version);
 
     free(status_line);
-    free(resp_header);
+    free(headers);
     free(body);
     free_request(request);
     return response;

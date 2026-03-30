@@ -5,6 +5,7 @@
 #define MAX_PENDING_CONNECTIONS 5
 
 #include "request.h"
+#include "response.h"
 
 
 int init_server(int port, int* server_fd);
