@@ -138,42 +138,10 @@ char* handle_request(Http_Request* request, arg_fds* args) {
     char* headers = strdup("");
     char* body = strdup("");
 
-    if (strcmp("/", request->target) == 0) {
-        status_line = create_status_line(200);
-
-    } else if (strncmp("/echo/", request->target, 6) == 0) {
-        status_line = create_status_line(200);
-        body = create_text_body(body, request->target + 6);
-        headers = create_content_header(headers, "text/plain", strlen(body));
-
-    } else if (strcmp("/user-agent", request->target) == 0) {
-        status_line = create_status_line(200);
-        body = create_text_body(body, shget(request->headers_map, "User-Agent"));
-        headers = create_content_header(headers, "text/plain", strlen(body));
-
-    } else if (strncmp("/files/", request->target, 7) == 0) {
-        char* filename = request->target + 7;
-        if (args->dir != NULL) {
-            int path_len = strlen(args->dir) + strlen(filename);
-            char fullpath[path_len + 1];
-            snprintf(fullpath, path_len + 1, "%s%s", args->dir, filename);
-
-            FILE* file = fopen(fullpath, "r");
-            if (file != NULL) {
-                status_line = create_status_line(200);
-                body = create_file_body(body, file);
-                headers = create_content_header(headers, "application/octet-stream", strlen(body));
-                fclose(file);
-            } else {
-                status_line = create_status_line(404);
-            }
-
-        } else {
-            status_line = create_status_line(404);
-        }
-    
-    } else {
-        status_line = create_status_line(404);
+    if (strcmp("GET", request->method) == 0) {
+        handle_gets(args->dir, request, &status_line, &headers, &body);
+    } else if (strcmp("POST", request->method) == 0) {
+        handle_posts(args->dir, request, &status_line, &headers, &body);
     }
 
     response = create_response(status_line, headers, body);

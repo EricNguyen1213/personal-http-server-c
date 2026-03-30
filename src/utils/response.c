@@ -10,6 +10,9 @@ char* create_status_line(int code) {
         case 200:
             status = "OK";
             break;
+        case 201:
+            status = "Created";
+            break;
         case 404:
             status = "Not Found";
             break;
@@ -60,4 +63,71 @@ char* create_file_body(char* body, FILE* f) {
     }
     body[body_len] = '\0';
     return body;
+}
+
+
+void handle_gets(char* dir, Http_Request* request, char** status_line, char** headers, char** body) {
+    if (strcmp("/", request->target) == 0) {
+        *status_line = create_status_line(200);
+
+    } else if (strncmp("/echo/", request->target, 6) == 0) {
+        *status_line = create_status_line(200);
+        *body = create_text_body(*body, request->target + 6);
+        *headers = create_content_header(*headers, "text/plain", strlen(*body));
+
+    } else if (strcmp("/user-agent", request->target) == 0) {
+        *status_line = create_status_line(200);
+        *body = create_text_body(*body, shget(request->headers_map, "User-Agent"));
+        *headers = create_content_header(*headers, "text/plain", strlen(*body));
+
+    } else if (strncmp("/files/", request->target, 7) == 0) {
+        char* filename = request->target + 7;
+        if (dir != NULL) {
+            int path_len = strlen(dir) + strlen(filename);
+            char fullpath[path_len + 1];
+            snprintf(fullpath, path_len + 1, "%s%s", dir, filename);
+
+            FILE* file = fopen(fullpath, "r");
+            if (file != NULL) {
+                *status_line = create_status_line(200);
+                *body = create_file_body(*body, file);
+                *headers = create_content_header(*headers, "application/octet-stream", strlen(*body));
+                fclose(file);
+            } else {
+                *status_line = create_status_line(404);
+            }
+
+        } else {
+            *status_line = create_status_line(404);
+        }
+    
+    } else {
+        *status_line = create_status_line(404);
+    }
+}
+
+void handle_posts(char* dir, Http_Request* request, char** status_line, char** headers, char** body) {
+    if (strncmp("/files/", request->target, 7) == 0) {
+        char* filename = request->target + 7;
+        if (dir != NULL) {
+            int path_len = strlen(dir) + strlen(filename);
+            char fullpath[path_len + 1];
+            snprintf(fullpath, path_len + 1, "%s%s", dir, filename);
+
+            FILE* file = fopen(fullpath, "w");
+            if (file != NULL) {
+                fputs(request->body, file);
+                *status_line = create_status_line(201);
+                fclose(file);
+            } else {
+                *status_line = create_status_line(404);
+            }
+
+        } else {
+            *status_line = create_status_line(404);
+        }
+    
+    } else {
+        *status_line = create_status_line(404);
+    }
 }

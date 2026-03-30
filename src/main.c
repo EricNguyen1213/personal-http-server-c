@@ -43,6 +43,7 @@ int main(int argc, char *argv[]) {
 	}
 
 	close(server_fd);
+	close(epoll_fd);
 	thpool_destroy(pool);
 	return 0;
 }

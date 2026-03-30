@@ -15,7 +15,7 @@ typedef struct {
     char* method;
     char* target;
     char* version;
-    
+    char* body;
     Header* headers_map;
 } Http_Request;
 
