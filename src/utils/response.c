@@ -38,10 +38,17 @@ char* create_text_body(char* body, char* content) {
     return body;
 }
 
-char* create_content_header(char* header, char* content_type, int content_len) {
-    int header_len = snprintf(NULL, 0, "Content-Type: %s\r\nContent-Length: %d\r\n", content_type, content_len);
+char* create_content_header(char* header, char* encoding, char* content_type, int content_len) {
+    if (encoding == NULL || strcmp(encoding, "gzip") != 0) {
+        int header_len = snprintf(NULL, 0, "Content-Type: %s\r\nContent-Length: %d\r\n", content_type, content_len);
+        header = safe_realloc(header, header_len + 1);
+        snprintf(header, header_len + 1, "Content-Type: %s\r\nContent-Length: %d\r\n", content_type, content_len);
+        return header;
+    }
+    
+    int header_len = snprintf(NULL, 0, "Content-Encoding: gzip\r\nContent-Type: %s\r\nContent-Length: %d\r\n", content_type, content_len);
     header = safe_realloc(header, header_len + 1);
-    snprintf(header, header_len + 1, "Content-Type: %s\r\nContent-Length: %d\r\n", content_type, content_len);
+    snprintf(header, header_len + 1, "Content-Encoding: gzip\r\nContent-Type: %s\r\nContent-Length: %d\r\n", content_type, content_len);
     return header;
 }
 
@@ -73,12 +80,12 @@ void handle_gets(char* dir, Http_Request* request, char** status_line, char** he
     } else if (strncmp("/echo/", request->target, 6) == 0) {
         *status_line = create_status_line(200);
         *body = create_text_body(*body, request->target + 6);
-        *headers = create_content_header(*headers, "text/plain", strlen(*body));
+        *headers = create_content_header(*headers, shget(request->headers_map, "Accept-Encoding"), "text/plain", strlen(*body));
 
     } else if (strcmp("/user-agent", request->target) == 0) {
         *status_line = create_status_line(200);
         *body = create_text_body(*body, shget(request->headers_map, "User-Agent"));
-        *headers = create_content_header(*headers, "text/plain", strlen(*body));
+        *headers = create_content_header(*headers, shget(request->headers_map, "Accept-Encoding"), "text/plain", strlen(*body));
 
     } else if (strncmp("/files/", request->target, 7) == 0) {
         char* filename = request->target + 7;
@@ -91,7 +98,7 @@ void handle_gets(char* dir, Http_Request* request, char** status_line, char** he
             if (file != NULL) {
                 *status_line = create_status_line(200);
                 *body = create_file_body(*body, file);
-                *headers = create_content_header(*headers, "application/octet-stream", strlen(*body));
+                *headers = *headers = create_content_header(*headers, shget(request->headers_map, "Accept-Encoding"), "application/octet-stream", strlen(*body));
                 fclose(file);
             } else {
                 *status_line = create_status_line(404);
