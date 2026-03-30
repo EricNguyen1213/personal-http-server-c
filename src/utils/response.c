@@ -2,7 +2,20 @@
 #include "tools/alloc.h"
 #include <stdlib.h>
 #include <string.h>
+#include <stdbool.h>
 
+bool identify_valid_encoding(char* encoding) {
+    if (encoding == NULL) {
+        return false;
+    }
+    if (strcmp("gzip", encoding) == 0) {
+        return true;
+    }
+    if (strstr(encoding, "gzip, ") != NULL || strstr(encoding, " gzip,") != NULL || strstr(encoding, " gzip\0") != NULL) {
+        return true;
+    }
+    return false;
+}
 
 char* create_status_line(int code) {
     char *status, *status_line;
@@ -39,16 +52,17 @@ char* create_text_body(char* body, char* content) {
 }
 
 char* create_content_header(char* header, char* encoding, char* content_type, int content_len) {
-    if (encoding == NULL || strcmp(encoding, "gzip") != 0) {
-        int header_len = snprintf(NULL, 0, "Content-Type: %s\r\nContent-Length: %d\r\n", content_type, content_len);
+
+    if (identify_valid_encoding(encoding)) {
+        int header_len = snprintf(NULL, 0, "Content-Encoding: gzip\r\nContent-Type: %s\r\nContent-Length: %d\r\n", content_type, content_len);
         header = safe_realloc(header, header_len + 1);
-        snprintf(header, header_len + 1, "Content-Type: %s\r\nContent-Length: %d\r\n", content_type, content_len);
+        snprintf(header, header_len + 1, "Content-Encoding: gzip\r\nContent-Type: %s\r\nContent-Length: %d\r\n", content_type, content_len);
         return header;
     }
-    
-    int header_len = snprintf(NULL, 0, "Content-Encoding: gzip\r\nContent-Type: %s\r\nContent-Length: %d\r\n", content_type, content_len);
+
+    int header_len = snprintf(NULL, 0, "Content-Type: %s\r\nContent-Length: %d\r\n", content_type, content_len);
     header = safe_realloc(header, header_len + 1);
-    snprintf(header, header_len + 1, "Content-Encoding: gzip\r\nContent-Type: %s\r\nContent-Length: %d\r\n", content_type, content_len);
+    snprintf(header, header_len + 1, "Content-Type: %s\r\nContent-Length: %d\r\n", content_type, content_len);
     return header;
 }
 
