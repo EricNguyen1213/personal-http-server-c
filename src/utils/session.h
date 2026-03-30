@@ -13,9 +13,10 @@
 typedef struct {
     int epoll_fd;
     int socket;
+    char* dir;
 } arg_fds;
 
-arg_fds* init_args(int epoll_fd, int socket);
+arg_fds* init_args(int epoll_fd, int socket, int argc, char** argv);
 
 int init_server(int port, int* epoll_fd, int* server_fd, threadpool* pool);
 int connect_client(int server_fd, int epoll_fd);

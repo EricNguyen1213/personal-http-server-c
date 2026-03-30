@@ -10,7 +10,7 @@
 #include <unistd.h>
 #include <sys/epoll.h>
 
-int main() {
+int main(int argc, char *argv[]) {
 	// Disable output buffering
 	setbuf(stdout, NULL);
  	setbuf(stderr, NULL);
@@ -20,7 +20,7 @@ int main() {
 
 	// Create Socket File Descriptor
 	threadpool pool;
-	int epoll_fd, server_fd, client_socket;
+	int epoll_fd, server_fd;
 	
 	if (init_server(PORT, &epoll_fd, &server_fd, &pool) != 0) {
 		return 1;
@@ -31,10 +31,11 @@ int main() {
 		int ready_len = epoll_wait(epoll_fd, events, MAX_EVENTS, -1);
 		for (int i = 0; i < ready_len; i++) {
 			if (events[i].data.fd != server_fd) {
-				arg_fds* args = init_args(epoll_fd, events[i].data.fd);
+				arg_fds* args = init_args(epoll_fd, events[i].data.fd, argc, argv);
 				thpool_add_work(pool, (void*) handle_client, (void*) args);
 				continue;
 			} 
+
 			if (connect_client(server_fd, epoll_fd) != 0) {
 				return 1;
 			}

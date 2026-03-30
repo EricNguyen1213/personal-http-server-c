@@ -29,23 +29,21 @@ int set_nonblocking(int fd) {
     return 0;
 }
 
-int add_event(int epoll_fd, int socket) {
-    struct epoll_event event;
-    event.events = EPOLLIN | EPOLLET | EPOLLONESHOT;
-    event.data.fd = socket;
-
-    if (epoll_ctl(epoll_fd, EPOLL_CTL_ADD, socket, &event) == -1) {
-        printf("Epoll Socket Fail To Add: %s \n", strerror(errno));
-        return 1;
-    }
-    return 0;
-}
 
 
-arg_fds* init_args(int epoll_fd, int socket) {
+arg_fds* init_args(int epoll_fd, int socket, int argc, char** argv) {
     arg_fds* args = safe_malloc(sizeof(arg_fds));
     args->epoll_fd = epoll_fd;
     args->socket = socket;
+    args->dir = NULL;
+
+    if (argc <= 1) {
+        return args;
+    }
+
+    if (strcmp(argv[1], "--directory") == 0) {
+        args->dir = argv[2];
+    }
     return args;
 }
 
@@ -88,7 +86,7 @@ int init_server(int port, int* epoll_fd, int* server_fd, threadpool* pool) {
 
     *pool = thpool_init(MAX_WORKERS);
 
-    *epoll_fd = epoll_create1(0);
+    *epoll_fd = epoll_create1(EPOLL_CLOEXEC);
     if (*epoll_fd == -1) {
         printf("Epoll FD failed: %s \n", strerror(errno));
         return 1;
@@ -135,7 +133,7 @@ int connect_client(int server_fd, int epoll_fd) {
 }
 
 
-char* handle_request(Http_Request* request) {
+char* handle_request(Http_Request* request, arg_fds* args) {
     char *response, *status_line;
     char* headers = strdup("");
     char* body = strdup("");
@@ -146,13 +144,34 @@ char* handle_request(Http_Request* request) {
     } else if (strncmp("/echo/", request->target, 6) == 0) {
         status_line = create_status_line(200);
         body = create_text_body(body, request->target + 6);
-        headers = create_text_header(headers, strlen(body));
+        headers = create_content_header(headers, "text/plain", strlen(body));
 
     } else if (strcmp("/user-agent", request->target) == 0) {
         status_line = create_status_line(200);
         body = create_text_body(body, shget(request->headers_map, "User-Agent"));
-        headers = create_text_header(headers, strlen(body));
+        headers = create_content_header(headers, "text/plain", strlen(body));
 
+    } else if (strncmp("/files/", request->target, 7) == 0) {
+        char* filename = request->target + 7;
+        if (args->dir != NULL) {
+            int path_len = strlen(args->dir) + strlen(filename);
+            char fullpath[path_len + 1];
+            snprintf(fullpath, path_len + 1, "%s%s", args->dir, filename);
+
+            FILE* file = fopen(fullpath, "r");
+            if (file != NULL) {
+                status_line = create_status_line(200);
+                body = create_file_body(body, file);
+                headers = create_content_header(headers, "application/octet-stream", strlen(body));
+                fclose(file);
+            } else {
+                status_line = create_status_line(404);
+            }
+
+        } else {
+            status_line = create_status_line(404);
+        }
+    
     } else {
         status_line = create_status_line(404);
     }
@@ -160,7 +179,6 @@ char* handle_request(Http_Request* request) {
     response = create_response(status_line, headers, body);
 
     // printf("%s\n", request->method);
-    // printf("%s\n", request->target);
     // printf("%s\n", request->version);
 
     free(status_line);
@@ -191,7 +209,7 @@ void handle_client(void* args) {
     bool must_close_socket = false;
     Http_Request* request = parse_request(argfds->socket, &must_close_socket);
     if (request != NULL) {
-        char* response = handle_request(request);
+        char* response = handle_request(request, argfds);
         send_response(argfds->socket, response);
     }
 

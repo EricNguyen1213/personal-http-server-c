@@ -1,6 +1,5 @@
 #include "response.h"
 #include "tools/alloc.h"
-#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -36,10 +35,10 @@ char* create_text_body(char* body, char* content) {
     return body;
 }
 
-char* create_text_header(char* header, int content_len) {
-    int header_len = snprintf(NULL, 0, "Content-Type: text/plain\r\nContent-Length: %d\r\n", content_len);
+char* create_content_header(char* header, char* content_type, int content_len) {
+    int header_len = snprintf(NULL, 0, "Content-Type: %s\r\nContent-Length: %d\r\n", content_type, content_len);
     header = safe_realloc(header, header_len + 1);
-    snprintf(header, header_len + 1, "Content-Type: text/plain\r\nContent-Length: %d\r\n", content_len);
+    snprintf(header, header_len + 1, "Content-Type: %s\r\nContent-Length: %d\r\n", content_type, content_len);
     return header;
 }
 
@@ -48,4 +47,17 @@ char* create_response(char* status_line, char* headers, char* body) {
     char* response = safe_malloc(resp_len + 1);
     snprintf(response, resp_len + 1, "%s\r\n%s\r\n%s", status_line, headers, body);
     return response;
+}
+
+char* create_file_body(char* body, FILE* f) {
+    size_t body_len = 0;
+    size_t bytes_read;
+    char buffer[READ_SIZE];
+    while ((bytes_read = fread(buffer, 1, READ_SIZE, f)) > 0) {
+        body = safe_realloc(body, body_len + bytes_read + 1);
+        memcpy(body + body_len, buffer, bytes_read);
+        body_len += bytes_read;
+    }
+    body[body_len] = '\0';
+    return body;
 }
