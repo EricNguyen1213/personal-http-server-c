@@ -113,7 +113,7 @@ void free_request(Http_Request* req_line) {
 }
 
 
-Http_Request* parse_request(int client_socket) {
+Http_Request* parse_request(int client_socket, bool* must_close_socket) {
     char buffer[READ_SIZE];
     char* start = buffer;
     char *headerkey, *headerval;
@@ -127,6 +127,18 @@ Http_Request* parse_request(int client_socket) {
     while (!found_method && (bytes_read = read(client_socket, buffer, READ_SIZE - 1)) > 0) {
         read_chunk(&req_line->method, &method_len, " ", &bytes_read, &start, buffer, &found_method);
     }
+    if (bytes_read == 0) {
+        free_request(req_line);
+        *must_close_socket = true;
+        return NULL;
+    }
+    // if (!found_method) {
+    //     *data = memcpy(*data, req_line->method, strlen(req_line->method));
+    //     memcpy(*data + strlen(req_line->method), start, bytes_read);
+    //     *data[strlen(req_line->method) + bytes_read] = '\0';
+    //     free_request(req_line);
+    //     return NULL;
+    // }
 
     do {
         read_chunk(&req_line->target, &target_len, " ", &bytes_read, &start, buffer, &found_target);
@@ -160,6 +172,20 @@ Http_Request* parse_request(int client_socket) {
         }
 
         shput(req_line->headers_map, headerkey, headerval);
+    }
+
+   
+    while (true) {
+        if (read(client_socket, buffer, READ_SIZE) < 0) {
+            if (errno == EAGAIN || errno == EWOULDBLOCK) {
+                break;
+            } else {
+                printf("Reading From Client Failed: %s...\n", strerror(errno));
+                *must_close_socket = true;
+                free_request(req_line);
+                return NULL;
+            }
+        }
     }
 
     return req_line;

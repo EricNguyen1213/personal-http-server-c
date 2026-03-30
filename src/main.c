@@ -1,4 +1,5 @@
 #include "utils/session.h"
+#include "utils/tools/thpool.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/socket.h>
@@ -7,6 +8,7 @@
 #include <string.h>
 #include <errno.h>
 #include <unistd.h>
+#include <sys/epoll.h>
 
 int main() {
 	// Disable output buffering
@@ -17,20 +19,29 @@ int main() {
 	// printf("Logs from your program will appear here!\n");
 
 	// Create Socket File Descriptor
-	int server_fd, client_socket;
+	threadpool pool;
+	int epoll_fd, server_fd, client_socket;
 	
-	if (init_server(PORT, &server_fd) != 0) {
+	if (init_server(PORT, &epoll_fd, &server_fd, &pool) != 0) {
 		return 1;
 	}
 
-	if (connect_client(server_fd, &client_socket) != 0) {
-		return 1;
+	struct epoll_event events[MAX_EVENTS];
+	while (true) {
+		int ready_len = epoll_wait(epoll_fd, events, MAX_EVENTS, -1);
+		for (int i = 0; i < ready_len; i++) {
+			if (events[i].data.fd != server_fd) {
+				arg_fds* args = init_args(epoll_fd, events[i].data.fd);
+				thpool_add_work(pool, (void*) handle_client, (void*) args);
+				continue;
+			} 
+			if (connect_client(server_fd, epoll_fd) != 0) {
+				return 1;
+			}
+		}
 	}
 
-	char* response = handle_request(client_socket);
-	send_response(client_socket, response, strlen(response));
-	
-	close(client_socket);
 	close(server_fd);
+	thpool_destroy(pool);
 	return 0;
 }

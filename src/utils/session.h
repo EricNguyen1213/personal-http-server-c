@@ -3,14 +3,22 @@
 
 #define PORT 4221
 #define MAX_PENDING_CONNECTIONS 5
+#define MAX_WORKERS 4
+#define MAX_EVENTS 10
 
+#include "tools/thpool.h"
 #include "request.h"
 #include "response.h"
 
+typedef struct {
+    int epoll_fd;
+    int socket;
+} arg_fds;
 
-int init_server(int port, int* server_fd);
-int connect_client(int server_fd, int* client_socket);
-char* handle_request(int client_socket);
-int send_response(int client_socket, char* response, int size);
+arg_fds* init_args(int epoll_fd, int socket);
+
+int init_server(int port, int* epoll_fd, int* server_fd, threadpool* pool);
+int connect_client(int server_fd, int epoll_fd);
+void handle_client(void* arg);
 
 #endif
