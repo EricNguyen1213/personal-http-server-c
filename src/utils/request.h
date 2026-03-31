@@ -22,5 +22,4 @@ typedef struct {
 
 void free_request(Http_Request* req_line);
 Http_Request* parse_request(int client_socket, bool* must_close_socket);
-char* create_status_line(int code);
 #endif

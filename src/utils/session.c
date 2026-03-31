@@ -133,18 +133,20 @@ int connect_client(int server_fd, int epoll_fd) {
 }
 
 
-char* handle_request(Http_Request* request, arg_fds* args) {
-    char *response, *status_line;
+char* handle_request(Http_Request* request, arg_fds* args, int* response_size) {
+    char *response;
+    char* status_line = strdup("");
     char* headers = strdup("");
     char* body = strdup("");
+    int body_size = 0;
 
     if (strcmp("GET", request->method) == 0) {
-        handle_gets(args->dir, request, &status_line, &headers, &body);
+        handle_gets(args->dir, request, &status_line, &headers, &body, &body_size);
     } else if (strcmp("POST", request->method) == 0) {
-        handle_posts(args->dir, request, &status_line, &headers, &body);
+        handle_posts(args->dir, request, &status_line, &headers, &body, &body_size);
     }
 
-    response = create_response(status_line, headers, body);
+    response = create_response(status_line, headers, body, body_size, response_size);
 
     // printf("%s\n", request->method);
     // printf("%s\n", request->version);
@@ -157,9 +159,9 @@ char* handle_request(Http_Request* request, arg_fds* args) {
 }
 
 
-int send_response(int client_socket, char* response) {
+int send_response(int client_socket, char* response, int response_size) {
+    printf("%s\n", response);
     int already_sent = 0;
-    int response_size = strlen(response);
     while (already_sent < response_size) {
         int sent = send(client_socket, response + already_sent, response_size - already_sent, 0);
         if (sent < 0) {
@@ -175,10 +177,12 @@ int send_response(int client_socket, char* response) {
 void handle_client(void* args) {
     arg_fds* argfds = (arg_fds*) args;
     bool must_close_socket = false;
+    int response_size;
     Http_Request* request = parse_request(argfds->socket, &must_close_socket);
+    
     if (request != NULL) {
-        char* response = handle_request(request, argfds);
-        send_response(argfds->socket, response);
+        char* response = handle_request(request, argfds, &response_size);
+        send_response(argfds->socket, response, response_size);
     }
 
     if (must_close_socket) {
