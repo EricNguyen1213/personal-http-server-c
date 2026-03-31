@@ -133,7 +133,7 @@ int connect_client(int server_fd, int epoll_fd) {
 }
 
 
-char* handle_request(Http_Request* request, arg_fds* args, int* response_size) {
+char* handle_request(Http_Request* request, arg_fds* args, int* response_size, bool* must_close_socket) {
     char *response;
     char* status_line = strdup("");
     char* headers = strdup("");
@@ -146,10 +146,16 @@ char* handle_request(Http_Request* request, arg_fds* args, int* response_size) {
         handle_posts(args->dir, request, &status_line, &headers, &body, &body_size);
     }
 
-    response = create_response(status_line, headers, body, body_size, response_size);
+    char* close_confirm = shget(request->headers_map, "Connection");
+    if (close_confirm != NULL && strcmp("close", close_confirm) == 0) {
+        char* close_header = "Connection: close\r\n";
+        int old_len = strlen(headers);
+        headers = safe_realloc(headers, old_len + strlen(close_header) + 1);
+        strlcpy(headers + old_len, close_header, strlen(close_header) + 1);
+        *must_close_socket = true;
+    }
 
-    // printf("%s\n", request->method);
-    // printf("%s\n", request->version);
+    response = create_response(status_line, headers, body, body_size, response_size);
 
     free(status_line);
     free(headers);
@@ -181,7 +187,7 @@ void handle_client(void* args) {
     Http_Request* request = parse_request(argfds->socket, &must_close_socket);
     
     if (request != NULL) {
-        char* response = handle_request(request, argfds, &response_size);
+        char* response = handle_request(request, argfds, &response_size, &must_close_socket);
         send_response(argfds->socket, response, response_size);
     }
 
