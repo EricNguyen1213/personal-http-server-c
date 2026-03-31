@@ -86,9 +86,9 @@ char* create_content_header(bool has_encoding, char* header, char* content_type,
         return header;
     } 
 
-    int header_len = snprintf(NULL, 0, "Content-Type: %s\r\nContent-Length: %d\r\n", content_type, content_len - 1);
+    int header_len = snprintf(NULL, 0, "Content-Type: %s\r\nContent-Length: %d\r\n", content_type, content_len);
     header = safe_realloc(header, header_len + 1);
-    snprintf(header, header_len + 1, "Content-Type: %s\r\nContent-Length: %d\r\n", content_type, content_len - 1);
+    snprintf(header, header_len + 1, "Content-Type: %s\r\nContent-Length: %d\r\n", content_type, content_len);
     return header;
 }
 
@@ -116,7 +116,7 @@ char* create_file_body(char* body, FILE* f) {
 
 char* compress_body(bool has_encoding, char* body, int* body_size) {
     char* fin_body = body;
-    *body_size = strlen(body) + 1;
+    *body_size = strlen(body);
     if (has_encoding) {
         fin_body = compress_to_gzip(body, body_size);
     }
